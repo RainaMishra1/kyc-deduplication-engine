@@ -19,7 +19,7 @@ FastAPI + PostgreSQL based system for KYC deduplication, mobile deduplication, a
 ### Run
 
 ```bash
-git clone https://github.com/RainaMishra1/kyc-deduplication-engine.git
+git clone https://github.com/RainaMishra1/kyc-dedup-agent.git
 cd kyc-deduplication-engine
 pip install -r requirements.txt
 uvicorn main:app --reload
