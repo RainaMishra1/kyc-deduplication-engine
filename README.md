@@ -1,6 +1,26 @@
-# KYC Deduplication Engine 
-A real-time KYC deduplication and fraud detection system built with FastAPI and PostgreSQL. 
-It identifies duplicate customers by comparing PAN, Aadhaar (last 4), Name, DOB, Phone, and Address using cumulative confidence scoring. 
-The system integrates with loan accounts to detect customers with multiple loans (SAME_CUSTOMER_MULTIPLE_LOANS), checks against blacklist records (BLACKLISTED_FRAUD), and stores all deduplication results for audit. 
-Simply clone, install dependencies (fastapi, uvicorn, psycopg2-binary, rapidfuzz), setup PostgreSQL tables, and run `uvicorn main:app --reload`. 
-Test via Swagger UI at `http://localhost:8000/docs` or POST to `/api/v1/kyc/dedup` with KYC data. 
+# KYC Deduplication & Loan Management System
+
+FastAPI + PostgreSQL based system for KYC deduplication, mobile deduplication, and multi-loan management.
+
+### Features
+
+* KYC duplicate detection with confidence scoring
+* Mobile number deduplication
+* Support for multiple loans per customer
+* Blacklist verification and audit tracking
+* Unified customer profile view
+
+### APIs
+
+* `POST /api/v1/kyc/dedup` – Check duplicate KYC
+* `POST /api/v1/loan/apply` – Apply for a loan
+* `GET /api/v1/customer/{identifier}` – Get customer and loan details
+
+### Run
+
+```bash
+git clone https://github.com/RainaMishra1/kyc-deduplication-engine.git
+cd kyc-deduplication-engine
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
