@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Dedup Agent</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ============================================================
+           GLOBAL STYLES
+           ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #dbeafe;
+            --secondary: #0f172a;
+            --accent: #f59e0b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            overflow-x: hidden;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--secondary);
+            color: #fff;
+            z-index: 1050;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+        .sidebar-brand {
+            padding: 1.5rem 1.5rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sidebar-brand .logo-icon { font-size: 2rem; color: var(--accent); }
+        .sidebar-brand h4 { font-weight: 700; font-size: 1.25rem; margin: 0; letter-spacing: -0.5px; }
+        .sidebar-brand .subtitle { font-size: 0.7rem; color: var(--gray-400); letter-spacing: 0.5px; text-transform: uppercase; }
+
+        .sidebar-nav { padding: 1rem 0.75rem; }
+        .sidebar-nav .nav-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--gray-500);
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+        }
+        .sidebar-nav .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.7rem 1rem;
+            color: var(--gray-400);
+            border-radius: 8px;
+            transition: var(--transition);
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: none;
+            background: transparent;
+            width: 100%;
+        }
+        .sidebar-nav .nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .sidebar-nav .nav-link.active {
+            background: rgba(37, 99, 235, 0.2);
+            color: #fff;
+            box-shadow: inset 3px 0 0 var(--primary);
+        }
+        .sidebar-nav .nav-link i { width: 20px; text-align: center; font-size: 1rem; }
+
+        .sidebar-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 0.7rem;
+            color: var(--gray-500);
+        }
+        .sidebar-footer .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .sidebar-footer .status-dot.online { background: var(--success); }
+        .sidebar-footer .status-dot.offline { background: var(--danger); }
+
+        .main-content {
+            margin-left: 280px;
+            padding: 2rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-section { display: none; animation: fadeSlideIn 0.4s ease; }
+        .page-section.active { display: block; }
+
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: var(--radius);
+            padding: 3rem 3rem 2.5rem;
+            margin-bottom: 2rem;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .hero-section .hero-badge {
+            display: inline-block;
+            background: rgba(37,99,235,0.2);
+            color: var(--primary-light);
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+        .hero-section h1 { font-weight: 800; font-size: 2.5rem; letter-spacing: -1px; position: relative; z-index: 1; }
+        .hero-section h1 .highlight { color: var(--accent); }
+        .hero-section p { color: var(--gray-300); font-size: 1.1rem; max-width: 600px; position: relative; z-index: 1; }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+        }
+        .feature-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            border: 1px solid var(--gray-200);
+            text-align: center;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
+        }
+        .feature-card .icon-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.75rem;
+            font-size: 1.25rem;
+        }
+        .feature-card .icon-circle.blue { background: var(--primary-light); color: var(--primary); }
+        .feature-card .icon-circle.green { background: #dcfce7; color: var(--success); }
+        .feature-card .icon-circle.orange { background: #fef3c7; color: var(--accent); }
+        .feature-card .icon-circle.purple { background: #ede9fe; color: #8b5cf6; }
+        .feature-card h6 { font-weight: 600; font-size: 0.95rem; margin: 0 0 0.25rem; }
+        .feature-card p { font-size: 0.8rem; color: var(--gray-500); margin: 0; }
+
+        .form-container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            margin-bottom: 1.5rem;
+        }
+
+        .result-box {
+            background: var(--gray-100);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--gray-200);
+            max-height: 700px;
+            overflow: auto;
+            display: none;
+        }
+        .result-box.show { display: block; }
+
+        .result-box .result-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+        .result-box .result-header.success { background: #dcfce7; color: #065f46; border-left: 4px solid var(--success); }
+        .result-box .result-header.error { background: #fef2f2; color: #991b1b; border-left: 4px solid var(--danger); }
+        .result-box .result-header.warning { background: #fef3c7; color: #92400e; border-left: 4px solid var(--accent); }
+        .result-box .result-header.info { background: #dbeafe; color: #1e40af; border-left: 4px solid var(--primary); }
+
+        .result-box .field-row {
+            display: flex;
+            padding: 0.4rem 0.75rem;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 0.9rem;
+        }
+        .result-box .field-row:last-child { border-bottom: none; }
+        .result-box .field-label {
+            font-weight: 600;
+            color: var(--gray-600);
+            min-width: 140px;
+        }
+        .result-box .field-value {
+            color: var(--gray-800);
+            word-break: break-word;
+        }
+        .result-box .field-value.highlight { color: var(--primary); font-weight: 600; }
+        .result-box .field-value.success-text { color: var(--success); font-weight: 600; }
+        .result-box .field-value.danger-text { color: var(--danger); font-weight: 600; }
+
+        .result-box .matched-fields {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+        .result-box .matched-field-tag {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 0.2rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .result-box .matched-field-tag.green { background: #dcfce7; color: #065f46; }
+        .result-box .matched-field-tag.orange { background: #fef3c7; color: #92400e; }
+        .result-box .matched-field-tag.purple { background: #ede9fe; color: #5b21b6; }
+
+        .result-box .loan-details {
+            background: #fff;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            border: 1px solid var(--gray-200);
+        }
+        .result-box .loan-details .loan-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0.5rem;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 0.85rem;
+        }
+        .result-box .loan-details .loan-item:last-child { border-bottom: none; }
+
+        .result-box .json-output {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            margin-top: 0.75rem;
+        }
+
+        .blacklist-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            margin-bottom: 1.25rem;
+        }
+        .blacklist-card h5 { font-weight: 600; margin-bottom: 1rem; color: var(--gray-800); }
+
+        .table-container {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+        }
+        .table-container .table { margin: 0; font-size: 0.85rem; }
+        .table-container .table th { font-weight: 600; color: var(--gray-600); border-bottom: 2px solid var(--gray-200); }
+
+        .btn-primary-custom {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .btn-primary-custom:hover { background: var(--primary-dark); color: #fff; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-success-custom {
+            background: var(--success);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .btn-success-custom:hover { background: #16a34a; color: #fff; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-danger-custom {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .btn-danger-custom:hover { background: #dc2626; color: #fff; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1060;
+            background: var(--secondary);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            box-shadow: var(--shadow-md);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1040;
+            backdrop-filter: blur(2px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-toggle { display: block; }
+            .main-content { margin-left: 0; padding: 1rem; padding-top: 4.5rem; }
+            .hero-section { padding: 1.5rem; }
+            .hero-section h1 { font-size: 1.8rem; }
+            .feature-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 576px) {
+            .feature-grid { grid-template-columns: 1fr; }
+            .field-row { flex-direction: column; padding: 0.3rem 0.5rem; }
+            .field-label { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar Toggle -->
+<button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- ============================================================
+     SIDEBAR
+     ============================================================ -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-shield-halved logo-icon"></i>
+            <div>
+                <h4>KYC Agent</h4>
+                <div class="subtitle">Deduplication &amp; Loans</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar-nav">
+        <div class="nav-label">Main</div>
+        <button class="nav-link active" data-page="welcome">
+            <i class="fas fa-house"></i> Dashboard
+        </button>
+        <button class="nav-link" data-page="kyc-dedup">
+            <i class="fas fa-user-check"></i> KYC Dedup
+        </button>
+        <button class="nav-link" data-page="apply-loan">
+            <i class="fas fa-hand-holding-dollar"></i> Apply Loan
+        </button>
+
+        <div class="nav-label mt-3">Customer</div>
+        <button class="nav-link" data-page="customer-profile">
+            <i class="fas fa-id-card"></i> Customer Profile
+        </button>
+        <button class="nav-link" data-page="all-customers">
+            <i class="fas fa-users"></i> All Customers
+        </button>
+
+        <div class="nav-label mt-3">Security</div>
+        <button class="nav-link" data-page="blacklist">
+            <i class="fas fa-ban"></i> Blacklist Management
+        </button>
+        <button class="nav-link" data-page="audit-log">
+            <i class="fas fa-clock-rotate-left"></i> Audit Log
+        </button>
+    </div>
+
+    <div class="sidebar-footer">
+        <div>
+            <span class="status-dot online" id="apiStatusDot"></span>
+            API: <span id="apiStatusText">Checking...</span>
+        </div>
+        <div class="mt-1">v4.0 • <span id="apiBaseDisplay">localhost:8000</span></div>
+    </div>
+</nav>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<div class="main-content" id="mainContent">
+
+    <!-- DASHBOARD -->
+    <section id="page-welcome" class="page-section active">
+        <div class="hero-section">
+            <div class="hero-badge"><i class="fas fa-shield-check me-1"></i> AI-Powered</div>
+            <h1>Smart KYC <span class="highlight">Deduplication</span> &amp; Loan Management</h1>
+            <p>Identify duplicate customers, detect conflicts, and manage loans – all in one unified platform.</p>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="icon-circle blue"><i class="fas fa-magnifying-glass"></i></div>
+                <h6>KYC Dedup</h6>
+                <p>Check duplicates using PAN, Aadhaar, Phone &amp; more</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon-circle green"><i class="fas fa-hand-holding-dollar"></i></div>
+                <h6>Loan Management</h6>
+                <p>Apply loans with auto‑assigned interest &amp; tenure</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon-circle orange"><i class="fas fa-triangle-exclamation"></i></div>
+                <h6>Conflict Detection</h6>
+                <p>Detect PAN, Aadhaar, Phone conflicts instantly</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon-circle purple"><i class="fas fa-clock-rotate-left"></i></div>
+                <h6>Audit Trail</h6>
+                <p>Complete history of all deduplication checks</p>
+            </div>
+        </div>
+        <div class="alert alert-info mt-3 d-flex align-items-center justify-content-between">
+            <div><i class="fas fa-link me-2"></i><strong>API Base:</strong> <span id="apiBaseDisplay2">http://localhost:8000</span></div>
+            <button class="btn btn-sm btn-outline-secondary" id="changeApiBtn">Change</button>
+        </div>
+    </section>
+
+    <!-- KYC DEDUP -->
+    <section id="page-kyc-dedup" class="page-section">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fas fa-user-check fs-4 text-primary"></i>
+            <h3 class="m-0">KYC Deduplication</h3>
+        </div>
+        <p class="text-muted">Enter customer details to check for duplicates or blacklist matches.</p>
+        <div class="form-container">
+            <form id="kycForm">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="kycName" placeholder="e.g., Rahul Sharma" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Date of Birth <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="kycDob" min="1960-01-01" max="2026-12-31" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">PAN <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="kycPan" placeholder="e.g., ABCDE1234F" maxlength="10" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Phone <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="kycPhone" placeholder="9876543210" maxlength="10" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Aadhaar <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="kycAadhaar" placeholder="e.g., 123456789012" maxlength="12" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Address <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="kycAddress" placeholder="e.g., 123 Main Street, City, State, ZIP" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary-custom mt-3">
+                    <i class="fas fa-search me-2"></i>Check Duplicate
+                </button>
+            </form>
+        </div>
+        <div id="kycResult" class="result-box"></div>
+    </section>
+
+    <!-- APPLY LOAN -->
+    <section id="page-apply-loan" class="page-section">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fas fa-hand-holding-dollar fs-4 text-success"></i>
+            <h3 class="m-0">Apply for Loan</h3>
+        </div>
+        <p class="text-muted">Interest rate and tenure will be auto‑assigned based on loan type.</p>
+        <div class="form-container">
+            <form id="loanForm">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="loanName" placeholder="Full name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">DOB <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="loanDob" min="1960-01-01" max="2026-12-31" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Aadhaar <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="loanAadhaar" placeholder="e.g., 123456789012" maxlength="12" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">PAN <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="loanPan" placeholder="e.g., ABCDE1234F" maxlength="10" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Mobile <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="loanMobile" placeholder="e.g., 9876543210" maxlength="10" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" class="form-control" id="loanEmail" placeholder="e.g., user@example.com">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Address <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="loanAddress" placeholder="e.g., 123 Main Street, City, State, ZIP" required>
+                    </div>
+                </div>
+                <hr class="my-3">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Loan Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="loanType">
+                            <option>Home Loan</option>
+                            <option>Personal Loan</option>
+                            <option>Car Loan</option>
+                            <option>Business Loan</option>
+                            <option>Education Loan</option>
+                            <option>Gold Loan</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Amount (₹) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="loanAmount" min="1000" step="1000" placeholder="e.g., 4500000" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Gender</label>
+                        <select class="form-select" id="loanGender">
+                            <option value="">Select</option>
+                            <option>Male</option>
+                            <option>Female</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="alert alert-secondary mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Auto‑assigned:</strong> Interest rate and tenure will be set based on the loan type.
+                </div>
+                <button type="submit" class="btn btn-success-custom mt-2">
+                    <i class="fas fa-check me-2"></i>Apply Loan
+                </button>
+            </form>
+        </div>
+        <div id="loanResult" class="result-box"></div>
+    </section>
+
+    <!-- CUSTOMER PROFILE -->
+    <section id="page-customer-profile" class="page-section">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fas fa-id-card fs-4 text-warning"></i>
+            <h3 class="m-0">Customer Profile</h3>
+        </div>
+        <p class="text-muted">Enter Aadhaar / Mobile / PAN to fetch complete profile.</p>
+        <div class="form-container">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <input type="text" class="form-control" id="profileIdentifier" placeholder="Aadhaar / Mobile / PAN">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary-custom w-100" id="fetchProfileBtn">
+                        <i class="fas fa-search me-2"></i>Fetch
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="profileResult" class="result-box"></div>
+    </section>
+
+    <!-- ALL CUSTOMERS -->
+    <section id="page-all-customers" class="page-section">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-users fs-4 text-info"></i>
+                <h3 class="m-0">All Customers</h3>
+            </div>
+            <button class="btn btn-outline-secondary" id="fetchCustomersBtn">
+                <i class="fas fa-rotate me-2"></i>Refresh
+            </button>
+        </div>
+        <div id="customersTableContainer"></div>
+    </section>
+
+    <!-- BLACKLIST MANAGEMENT -->
+    <section id="page-blacklist" class="page-section">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fas fa-ban fs-4 text-danger"></i>
+            <h3 class="m-0">Blacklist Management</h3>
+        </div>
+        <div class="blacklist-card">
+            <h5><i class="fas fa-eye me-2"></i>View Current Blacklist</h5>
+            <button class="btn btn-outline-secondary mb-3" id="fetchBlacklistBtn">
+                <i class="fas fa-rotate me-2"></i>Refresh
+            </button>
+            <div id="blacklistTableContainer"></div>
+        </div>
+        <div class="blacklist-card">
+            <h5><i class="fas fa-plus-circle me-2 text-danger"></i>Add to Blacklist</h5>
+            <form id="addBlacklistForm">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="blName" placeholder="Full name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="blDob" min="1960-01-01" max="2026-12-31" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">PAN</label>
+                        <input type="text" class="form-control" id="blPan" placeholder="ABCDE1234F" maxlength="10">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Aadhaar</label>
+                        <input type="text" class="form-control" id="blAadhaar" placeholder="12 digits" maxlength="12">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Mobile</label>
+                        <input type="text" class="form-control" id="blMobile" placeholder="9876543210" maxlength="10">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Reason <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="blReason" placeholder="Reason for blacklisting" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Source</label>
+                        <input type="text" class="form-control" id="blSource" placeholder="e.g., Internal, RBI">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-danger-custom mt-3">
+                    <i class="fas fa-plus me-2"></i>Add to Blacklist
+                </button>
+            </form>
+            <div id="addBlacklistResult" class="result-box mt-3"></div>
+        </div>
+        <div class="blacklist-card">
+            <h5><i class="fas fa-trash me-2 text-danger"></i>Remove from Blacklist</h5>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Blacklist ID <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="removeBlId" placeholder="Enter Blacklist ID to remove" min="1">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-danger-custom w-100" id="removeBlBtn">
+                        <i class="fas fa-trash me-2"></i>Remove
+                    </button>
+                </div>
+            </div>
+            <div id="removeBlResult" class="result-box mt-3"></div>
+        </div>
+    </section>
+
+    <!-- AUDIT LOG -->
+    <section id="page-audit-log" class="page-section">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-clock-rotate-left fs-4 text-secondary"></i>
+                <h3 class="m-0">Dedup Audit Log</h3>
+            </div>
+            <button class="btn btn-outline-secondary" id="fetchAuditBtn">
+                <i class="fas fa-rotate me-2"></i>Fetch
+            </button>
+        </div>
+        <div id="auditTableContainer"></div>
+    </section>
+
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js">
+</script>
+
+<!-- ============================================================
+     CUSTOM JAVASCRIPT
+     ============================================================ -->
+<script>
+(function() {
+    'use strict';
+
+    let API_BASE = localStorage.getItem('apiBase') || 'http://localhost:8000';
+    document.getElementById('apiBaseDisplay').textContent = new URL(API_BASE).host || API_BASE;
+    document.getElementById('apiBaseDisplay2').textContent = API_BASE;
+
+    function getApiBase() { return API_BASE; }
+
+    // ============================================================
+    // UPDATED RESULT DISPLAY - Handles BOTH Dedup AND Customer Profile
+    // ============================================================
+    function showResult(containerId, data, isError = false) {
+        const el = document.getElementById(containerId);
+        el.style.display = 'block';
+        el.className = 'result-box show';
+
+        // ============================================================
+        // ERROR HANDLING
+        // ============================================================
+        if (isError) {
+            let msg = data;
+            if (typeof data === 'object' && data !== null) {
+                if (data.detail) {
+                    if (Array.isArray(data.detail)) {
+                        msg = data.detail.map(err => {
+                            const loc = err.loc ? err.loc.join('.') : 'unknown';
+                            return `${loc}: ${err.msg}`;
+                        }).join('\n');
+                    } else {
+                        msg = data.detail;
+                    }
+                } else {
+                    msg = JSON.stringify(data, null, 2);
+                }
+            }
+            el.innerHTML = `
+                <div class="result-header error">
+                    <i class="fas fa-circle-exclamation me-2"></i>Error
+                </div>
+                <div style="color: #991b1b; white-space: pre-wrap; font-family: monospace;">${msg}</div>
+            `;
+            return;
+        }
+
+        // ============================================================
+        // CUSTOMER PROFILE RESPONSE (NEW)
+        // ============================================================
+        if (data.customer) {
+            const customer = data.customer;
+            const loans = data.loans || [];
+            const totalLoans = data.total_loans || 0;
+            const hasMultipleLoans = data.has_multiple_loans || false;
+
+            // Build loan HTML
+            let loanHtml = '';
+            if (loans.length > 0) {
+                let loansList = '';
+                loans.forEach(loan => {
+                    const statusClass = loan.loan_status === 'ACTIVE' ? 'success-text' : 'danger-text';
+                    loansList += `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 0.5rem; padding: 0.3rem 0.5rem; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;">
+                            <span><strong>${loan.loan_account_no || 'N/A'}</strong></span>
+                            <span>${loan.loan_type || 'N/A'}</span>
+                            <span>₹${(loan.loan_amount || 0).toLocaleString()}</span>
+                            <span class="${statusClass}">${loan.loan_status || 'N/A'}</span>
+                            <span>${loan.application_date || 'N/A'}</span>
+                        </div>
+                    `;
+                });
+                
+                loanHtml = `
+                    <div style="margin-top: 0.5rem;">
+                        <div style="font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Loans</div>
+                        <div style="background: #fff; border-radius: 8px; padding: 0.75rem; border: 1px solid #e2e8f0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">Total Loans: <span style="color: #2563eb;">${totalLoans}</span></span>
+                                ${hasMultipleLoans ? '<span class="badge bg-warning text-dark">Multiple Loans</span>' : ''}
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 0.5rem; font-weight: 600; font-size: 0.8rem; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3rem; margin-bottom: 0.3rem;">
+                                <span>Account</span>
+                                <span>Type</span>
+                                <span>Amount</span>
+                                <span>Status</span>
+                                <span>Date</span>
+                            </div>
+                            ${loansList}
+                        </div>
+                    </div>
+                `;
+            } else {
+                loanHtml = `
+                    <div style="margin-top: 0.5rem;">
+                        <div style="font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Loans</div>
+                        <div style="background: #fff; border-radius: 8px; padding: 0.75rem; border: 1px solid #e2e8f0; color: #64748b;">
+                            No loans found for this customer.
+                        </div>
+                    </div>
+                `;
+            }
+
+            el.innerHTML = `
+                <div class="result-header success">
+                    <i class="fas fa-id-card me-2"></i>👤 CUSTOMER PROFILE
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Status</div>
+                    <div class="field-value">${data.status || 'SUCCESS'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Customer ID</div>
+                    <div class="field-value highlight">${customer.customer_id || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Name</div>
+                    <div class="field-value">${customer.name || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">DOB</div>
+                    <div class="field-value">${customer.dob || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Aadhaar</div>
+                    <div class="field-value">${customer.aadhaar_number || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">PAN</div>
+                    <div class="field-value">${customer.pan || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Mobile</div>
+                    <div class="field-value">${customer.mobile_number || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Email</div>
+                    <div class="field-value">${customer.email || 'N/A'}</div>
+                </div>
+                
+                <div class="field-row">
+                    <div class="field-label">Address</div>
+                    <div class="field-value">${customer.address || 'N/A'}</div>
+                </div>
+                
+                ${loanHtml}
+                
+                <div class="json-output">
+                    <i class="fas fa-code me-1"></i> Raw Response:
+                    ${JSON.stringify(data, null, 2)}
+                </div>
+            `;
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+        }
+
+        // ============================================================
+        // KYC DEDUP / LOAN APPLY RESPONSE (Original)
+        // ============================================================
+        let status = data.status || '';
+        let verdict = data.verdict || '';
+        let action = data.action || '';
+        let confidence = data.confidence || 0;
+        let customer_id = data.customer_id || 'N/A';
+        let customer_name = data.customer_name || 'N/A';
+        let matched_fields = data.matched_fields || [];
+        let loan_details = data.loan_details || null;
+
+        let headerClass = 'info';
+        let headerIcon = 'fa-circle-info';
+        let headerText = 'Result';
+
+        if (verdict === 'BLACKLISTED_FRAUD' || verdict === 'BLACKLISTED') {
+            headerClass = 'error';
+            headerIcon = 'fa-ban';
+            headerText = '⛔ BLACKLISTED';
+        } else if (verdict === 'SAME_CUSTOMER_MULTIPLE_LOANS' || 
+                   verdict === 'EXISTING_CUSTOMER_NEW_LOAN' ||
+                   verdict === 'EXISTING_CUSTOMER_SINGLE_LOAN' ||
+                   verdict === 'EXISTING_CUSTOMER_MEDIUM' ||
+                   verdict === 'EXISTING_CUSTOMER_LOW') {
+            headerClass = 'warning';
+            headerIcon = 'fa-user-check';
+            headerText = '👤 EXISTING CUSTOMER';
+        } else if (verdict === 'EXACT_MATCH' || verdict === 'HIGH_CONFIDENCE_MATCH') {
+            headerClass = 'error';
+            headerIcon = 'fa-exclamation-triangle';
+            headerText = '⚠️ DUPLICATE FOUND';
+        } else if (verdict === 'NO_MATCH' || verdict === 'NEW_CUSTOMER') {
+            headerClass = 'success';
+            headerIcon = 'fa-check-circle';
+            headerText = '✅ CLEAR';
+        } else if (verdict === 'CONFLICT') {
+            headerClass = 'error';
+            headerIcon = 'fa-triangle-exclamation';
+            headerText = '⚠️ CONFLICT DETECTED';
+        } else {
+            headerClass = 'info';
+            headerIcon = 'fa-circle-info';
+            headerText = 'ℹ️ INFORMATION';
+        }
+
+        let matchedFieldsHtml = '';
+        if (matched_fields && matched_fields.length > 0) {
+            const tagColors = ['green', 'orange', 'purple', 'blue'];
+            matchedFieldsHtml = `
+                <div class="field-row">
+                    <div class="field-label">Matched Fields</div>
+                    <div class="field-value">
+                        <div class="matched-fields">
+                            ${matched_fields.map((f, i) => 
+                                `<span class="matched-field-tag ${tagColors[i % tagColors.length]}">${f}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let loanHtml = '';
+        if (loan_details && loan_details.loan_count > 0) {
+            const accounts = loan_details.loan_accounts || [];
+            const types = loan_details.loan_types || [];
+            const statuses = loan_details.loan_statuses || [];
+            
+            let loansList = '';
+            for (let i = 0; i < accounts.length; i++) {
+                const statusClass = statuses[i] === 'ACTIVE' ? 'success-text' : 'danger-text';
+                loansList += `
+                    <div class="loan-item">
+                        <span><strong>${accounts[i]}</strong></span>
+                        <span>${types[i] || 'N/A'}</span>
+                        <span class="${statusClass}">${statuses[i] || 'N/A'}</span>
+                    </div>
+                `;
+            }
+            
+            loanHtml = `
+                <div class="field-row">
+                    <div class="field-label">Loan Details</div>
+                    <div class="field-value">
+                        <div class="loan-details">
+                            <div style="font-weight:600; margin-bottom:0.25rem;">
+                                Total Loans: <span class="highlight">${loan_details.loan_count}</span>
+                            </div>
+                            ${loansList}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        el.innerHTML = `
+            <div class="result-header ${headerClass}">
+                <i class="fas ${headerIcon} me-2"></i>${headerText}
+            </div>
+            
+            <div class="field-row">
+                <div class="field-label">Status</div>
+                <div class="field-value">${status}</div>
+            </div>
+            
+            <div class="field-row">
+                <div class="field-label">Verdict</div>
+                <div class="field-value highlight">${verdict}</div>
+            </div>
+            
+            <div class="field-row">
+                <div class="field-label">Action</div>
+                <div class="field-value">${action}</div>
+            </div>
+            
+            <div class="field-row">
+                <div class="field-label">Confidence</div>
+                <div class="field-value ${confidence >= 0.7 ? 'success-text' : confidence >= 0.4 ? 'warning-text' : ''}">
+                    ${(confidence * 100).toFixed(0)}%
+                </div>
+            </div>
+            
+            <div class="field-row">
+                <div class="field-label">Customer ID</div>
+                <div class="field-value highlight">${customer_id}</div>
+            </div>
+            
+            <div class="field-row">
+                <div class="field-label">Customer Name</div>
+                <div class="field-value">${customer_name}</div>
+            </div>
+            
+            ${matchedFieldsHtml}
+            ${loanHtml}
+            
+            <div class="json-output">
+                <i class="fas fa-code me-1"></i> Raw Response:
+                ${JSON.stringify(data, null, 2)}
+            </div>
+        `;
+
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ============================================================
+    // API CALL
+    // ============================================================
+    function apiCall(method, endpoint, body = null) {
+        const url = getApiBase() + endpoint;
+        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) options.body = JSON.stringify(body);
+        return fetch(url, options).then(async res => {
+            const text = await res.text();
+            let data;
+            try { data = JSON.parse(text); } catch (e) { data = text; }
+            if (!res.ok) throw data;
+            return data;
+        });
+    }
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+    const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+    const sections = {
+        welcome: document.getElementById('page-welcome'),
+        'kyc-dedup': document.getElementById('page-kyc-dedup'),
+        'apply-loan': document.getElementById('page-apply-loan'),
+        'customer-profile': document.getElementById('page-customer-profile'),
+        'all-customers': document.getElementById('page-all-customers'),
+        blacklist: document.getElementById('page-blacklist'),
+        'audit-log': document.getElementById('page-audit-log'),
+    };
+
+    function navigateTo(pageId) {
+        Object.values(sections).forEach(s => s.classList.remove('active'));
+        if (sections[pageId]) sections[pageId].classList.add('active');
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.dataset.page === pageId) link.classList.add('active');
+        });
+        closeSidebar();
+
+        if (pageId === 'all-customers') fetchAllCustomers();
+        if (pageId === 'blacklist') fetchBlacklist();
+        if (pageId === 'audit-log') fetchAuditLog();
+    }
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo(link.dataset.page);
+        });
+    });
+
+    // ============================================================
+    // SIDEBAR TOGGLE
+    // ============================================================
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggleBtn = document.getElementById('sidebarToggle');
+
+    function openSidebar() { sidebar.classList.add('open'); overlay.classList.add('active'); }
+    function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
+
+    toggleBtn.addEventListener('click', openSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    // ============================================================
+    // API BASE CHANGE
+    // ============================================================
+    document.getElementById('changeApiBtn').addEventListener('click', function() {
+        const newUrl = prompt('Enter new API base URL:', API_BASE);
+        if (newUrl) {
+            API_BASE = newUrl.trim();
+            localStorage.setItem('apiBase', API_BASE);
+            document.getElementById('apiBaseDisplay').textContent = new URL(API_BASE).host || API_BASE;
+            document.getElementById('apiBaseDisplay2').textContent = API_BASE;
+            checkApiHealth();
+        }
+    });
+
+    // ============================================================
+    // API HEALTH
+    // ============================================================
+    function checkApiHealth() {
+        const statusText = document.getElementById('apiStatusText');
+        const statusDot = document.getElementById('apiStatusDot');
+        statusText.textContent = 'Checking...';
+        statusDot.className = 'status-dot';
+
+        fetch(getApiBase() + '/api/v1/health')
+            .then(res => {
+                if (res.ok) {
+                    statusText.textContent = 'Online';
+                    statusDot.className = 'status-dot online';
+                } else {
+                    statusText.textContent = 'Offline';
+                    statusDot.className = 'status-dot offline';
+                }
+            })
+            .catch(() => {
+                statusText.textContent = 'Offline';
+                statusDot.className = 'status-dot offline';
+            });
+    }
+    checkApiHealth();
+
+    // ============================================================
+    // KYC DEDUP
+    // ============================================================
+    document.getElementById('kycForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const payload = {
+            wakes_on: "kyc.dedup_requested",
+            reads: {
+                name: document.getElementById('kycName').value,
+                dob: document.getElementById('kycDob').value,
+                pan: document.getElementById('kycPan').value.toUpperCase(),
+                phone: document.getElementById('kycPhone').value,
+                aadhaar_number: document.getElementById('kycAadhaar').value,
+                address: document.getElementById('kycAddress').value,
+            }
+        };
+        apiCall('POST', '/api/v1/kyc/dedup', payload)
+            .then(data => showResult('kycResult', data))
+            .catch(err => showResult('kycResult', err, true));
+    });
+
+    // ============================================================
+    // APPLY LOAN
+    // ============================================================
+    document.getElementById('loanForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const payload = {
+            name: document.getElementById('loanName').value,
+            dob: document.getElementById('loanDob').value,
+            aadhaar_number: document.getElementById('loanAadhaar').value,
+            pan: document.getElementById('loanPan').value.toUpperCase(),
+            mobile_number: document.getElementById('loanMobile').value,
+            email: document.getElementById('loanEmail').value || null,
+            address: document.getElementById('loanAddress').value,
+            loan_type: document.getElementById('loanType').value,
+            loan_amount: parseFloat(document.getElementById('loanAmount').value),
+            gender: document.getElementById('loanGender').value || null,
+        };
+        apiCall('POST', '/api/v1/loan/apply', payload)
+            .then(data => showResult('loanResult', data))
+            .catch(err => showResult('loanResult', err, true));
+    });
+
+    // ============================================================
+    // CUSTOMER PROFILE
+    // ============================================================
+    document.getElementById('fetchProfileBtn').addEventListener('click', function() {
+        const identifier = document.getElementById('profileIdentifier').value.trim();
+        if (!identifier) {
+            showResult('profileResult', 'Please enter an identifier.', true);
+            return;
+        }
+        apiCall('GET', '/api/v1/customer/' + encodeURIComponent(identifier))
+            .then(data => showResult('profileResult', data))
+            .catch(err => showResult('profileResult', err, true));
+    });
+
+    // ============================================================
+    // ALL CUSTOMERS
+    // ============================================================
+    function fetchAllCustomers() {
+        const container = document.getElementById('customersTableContainer');
+        container.innerHTML = `<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>`;
+        apiCall('GET', '/api/v1/customers')
+            .then(data => {
+                if (data.data && data.data.length > 0) {
+                    let html = `<div class="table-container"><div class="table-responsive"><table class="table table-hover">
+                        <thead><tr><th>ID</th><th>Name</th><th>Aadhaar</th><th>Mobile</th><th>PAN</th><th>DOB</th></tr></thead><tbody>`;
+                    data.data.forEach(c => {
+                        html += `<tr><td>${c.customer_id}</td><td>${c.name}</td><td>${c.aadhaar_number}</td><td>${c.mobile_number}</td><td>${c.pan || '-'}</td><td>${c.dob}</td></tr>`;
+                    });
+                    html += `</tbody></table></div></div>`;
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `<div class="alert alert-info">No customers found.</div>`;
+                }
+            })
+            .catch(err => container.innerHTML = `<div class="alert alert-danger">Error loading customers.</div>`);
+    }
+    document.getElementById('fetchCustomersBtn').addEventListener('click', fetchAllCustomers);
+
+    // ============================================================
+    // BLACKLIST
+    // ============================================================
+    function fetchBlacklist() {
+        const container = document.getElementById('blacklistTableContainer');
+        container.innerHTML = `<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>`;
+        apiCall('GET', '/api/v1/blacklist')
+            .then(data => {
+                if (data.data && data.data.length > 0) {
+                    let html = `<div class="table-container"><div class="table-responsive"><table class="table table-hover">
+                        <thead><tr><th>ID</th><th>Name</th><th>DOB</th><th>Aadhaar</th><th>Mobile</th><th>PAN</th><th>Reason</th><th>Source</th></tr></thead><tbody>`;
+                    data.data.forEach(b => {
+                        html += `<tr><td>${b.blacklist_id}</td><td>${b.name}</td><td>${b.dob}</td><td>${b.aadhaar_number || '-'}</td><td>${b.mobile_number || '-'}</td><td>${b.pan || '-'}</td><td>${b.reason}</td><td>${b.source || '-'}</td></tr>`;
+                    });
+                    html += `</tbody></table></div></div>`;
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `<div class="alert alert-info">No blacklist records.</div>`;
+                }
+            })
+            .catch(err => container.innerHTML = `<div class="alert alert-danger">Error loading blacklist.</div>`);
+    }
+    document.getElementById('fetchBlacklistBtn').addEventListener('click', fetchBlacklist);
+
+    // ============================================================
+    // BLACKLIST - Add
+    // ============================================================
+    document.getElementById('addBlacklistForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const payload = {
+            name: document.getElementById('blName').value,
+            dob: document.getElementById('blDob').value,
+            pan: document.getElementById('blPan').value.toUpperCase() || null,
+            aadhaar_number: document.getElementById('blAadhaar').value || null,
+            mobile_number: document.getElementById('blMobile').value || null,
+            reason: document.getElementById('blReason').value,
+            source: document.getElementById('blSource').value || null,
+        };
+        
+        if (!payload.name || !payload.reason) {
+            showResult('addBlacklistResult', { detail: 'Name and Reason are required.' }, true);
+            return;
+        }
+        
+        apiCall('POST', '/api/v1/blacklist/add', payload)
+            .then(data => showResult('addBlacklistResult', data))
+            .catch(err => showResult('addBlacklistResult', err, true));
+    });
+
+    // ============================================================
+    // BLACKLIST - Remove
+    // ============================================================
+    document.getElementById('removeBlBtn').addEventListener('click', function() {
+        const id = document.getElementById('removeBlId').value.trim();
+        if (!id) {
+            showResult('removeBlResult', { detail: 'Please enter a Blacklist ID.' }, true);
+            return;
+        }
+        
+        apiCall('DELETE', '/api/v1/blacklist/remove/' + encodeURIComponent(id))
+            .then(data => showResult('removeBlResult', data))
+            .catch(err => showResult('removeBlResult', err, true));
+    });
+
+    // ============================================================
+    // AUDIT LOG
+    // ============================================================
+    function fetchAuditLog() {
+        const container = document.getElementById('auditTableContainer');
+        container.innerHTML = `<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>`;
+        apiCall('GET', '/api/v1/dedup/results?limit=50')
+            .then(data => {
+                if (data.data && data.data.length > 0) {
+                    let html = `<div class="table-container"><div class="table-responsive"><table class="table table-hover">
+                        <thead><tr><th>ID</th><th>Customer</th><th>Matched</th><th>Score</th><th>Type</th><th>Explanation</th></tr></thead><tbody>`;
+                    data.data.forEach(r => {
+                        html += `<tr><td>${r.result_id}</td><td>${r.customer_id || 'N/A'}</td><td>${r.matched_customer_id || 'N/A'}</td><td>${r.match_score}</td><td>${r.result_type}</td><td>${r.explanation}</td></tr>`;
+                    });
+                    html += `</tbody></table></div></div>`;
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `<div class="alert alert-info">No audit logs found.</div>`;
+                }
+            })
+            .catch(err => container.innerHTML = `<div class="alert alert-danger">Error loading audit logs.</div>`);
+    }
+    document.getElementById('fetchAuditBtn').addEventListener('click', fetchAuditLog);
+
+    // ============================================================
+    // SET DEFAULT DATES
+    // ============================================================
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[type="date"]').forEach(el => {
+        if (!el.value) el.value = today;
+    });
+
+    // ============================================================
+    // NAVIGATE TO DASHBOARD ON LOAD
+    // ============================================================
+    navigateTo('welcome');
+
+    console.log('🚀 KYC Agent UI loaded. API Base:', API_BASE);
+})();
+</script>
+
+</body>
+</html>
