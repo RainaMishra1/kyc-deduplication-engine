@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
+import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 from rapidfuzz.distance import JaroWinkler
@@ -55,17 +56,44 @@ app.add_middleware(
 
 
 # =============================================================================
-# DATABASE CONNECTION
+# DATABASE CONNECTION - NEON DB
 # =============================================================================
 
-db_pool = SimpleConnectionPool(
-    minconn=1,
-    maxconn=10,
-    dsn=os.environ.get(
-        "DATABASE_URL",
-        "host=localhost dbname=postgres user=postgres password=Root port=5432"
+# Neon DB connection parameters
+DATABASE_URL = "postgresql://neondb_owner:npg_CJ3v4sDOXyoB@ep-lucky-frog-aonshj5s-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+
+# Alternative: Use individual parameters
+DB_CONFIG = {
+    "host": "ep-lucky-frog-aonshj5s-pooler.c-2.ap-southeast-1.aws.neon.tech",
+    "database": "neondb",
+    "user": "neondb_owner",
+    "password": "npg_CJ3v4sDOXyoB",
+    "port": 5432,
+    "sslmode": "require"
+}
+
+# Create connection pool with Neon DB
+try:
+    # Try using DATABASE_URL first
+    db_pool = SimpleConnectionPool(
+        minconn=1,
+        maxconn=10,
+        dsn=os.environ.get("DATABASE_URL", DATABASE_URL)
     )
-)
+    logger.info("✅ Successfully connected to Neon DB using DATABASE_URL")
+except Exception as e:
+    logger.warning(f"Failed to connect using DATABASE_URL: {e}")
+    try:
+        # Fallback to individual parameters
+        db_pool = SimpleConnectionPool(
+            minconn=1,
+            maxconn=10,
+            **DB_CONFIG
+        )
+        logger.info("✅ Successfully connected to Neon DB using individual parameters")
+    except Exception as e2:
+        logger.error(f"❌ Failed to connect to Neon DB: {e2}")
+        raise
 
 @contextmanager
 def get_db_connection():
@@ -1378,6 +1406,7 @@ def root():
     return {
         "service": "KYC Deduplication & Loan Management System",
         "version": "4.0.0",
+        "database": "Neon DB",
         "endpoints": {
             "kyc_dedup": "POST /api/v1/kyc/dedup",
             "apply_loan": "POST /api/v1/loan/apply",

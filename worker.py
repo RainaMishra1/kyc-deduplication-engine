@@ -15,11 +15,10 @@ from typing import List, Dict, Any, Optional
 
 def get_db_connection():
     return psycopg2.connect(
-        host="localhost",
-        database="postgres",
-        user="postgres",
-        password="Root",
-        port="5432"
+        os.environ.get(
+            "DATABASE_URL",
+            "postgresql://neondb_owner:npg_CJ3v4sDOXyoB@ep-lucky-frog-aonshj5s-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+        )
     )
 
 # ============================================================================
