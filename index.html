@@ -755,7 +755,7 @@
 (function() {
     'use strict';
 
-    let API_BASE = localStorage.getItem('apiBase') || 'http://localhost:8000';
+    let API_BASE = localStorage.getItem('apiBase') || 'https://kyc-dedup-agent-1.onrender.com';
     document.getElementById('apiBaseDisplay').textContent = new URL(API_BASE).host || API_BASE;
     document.getElementById('apiBaseDisplay2').textContent = API_BASE;
 
